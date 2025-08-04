@@ -10,29 +10,19 @@ import numpy as np
 import tifffile as tiff
 from skimage.filters import difference_of_gaussians
 from skimage.feature import peak_local_max
-from numba import jit
+from numba import jit, prange
 from numba.typed import List
+from more_itertools import consecutive_groups
+from file_io import load_stack, conv_to_df, save_data
 
-def load_stack(file_path: str) -> 'np.memarray':
-    
-    with tiff.TiffFile(file_path) as tif:
-        
-        memmap_stack = tif.asarray(out='memmap')
-    
-    return memmap_stack.astype(np.float32)
-
-def convert_to_photons(image: 'np.ndarray', adc: float,
+@jit(nopython=True, nogil=True, cache=False)
+def convert_to_photons(data: 'np.ndarray', adc: float,
                        gain: int, qe: float) -> 'np.ndarray':
 
     """
-    Converts an image from grayscale to photons
+    Converts data (image, summed images etc.) from grayscale to photons
     """
-
-    image_in_photons = image.copy()
-
-    image_in_photons = image_in_photons - np.min(image_in_photons)
-
-    return image_in_photons * adc * (1 / qe) * (1 / gain)
+    return data * adc * (1 / qe) * (1 / gain)
 
 @jit(nopython=True, nogil=True, cache=False)
 def rms_calc(data: 'np.ndarray') -> float:
@@ -139,28 +129,71 @@ def extract_spot_roi(image, image_stack, spot_center):
     
     return spot
 
+@jit(nopython=True, nogil=True, cache=False)
 def extract_on_off(spot: 'np.ndarray') -> tuple['np.ndarray', 'np.ndarray']:
 
     threshold = rms_calc(spot)
 
     mean_int = np.mean(np.mean(spot, axis=2), axis=1)
 
-    on_frames = np.where(mean_int > (3 * threshold))
+    on_frames = np.where(mean_int > (3 * threshold))[0]
 
-    off_frames =np.where(mean_int < (3 * threshold))
+    off_frames = np.where(mean_int < (3 * threshold))[0]
 
-    return on_frames, off_frame
+    return on_frames + 1, off_frames + 1 # Offset zero-indexing
 
+@jit(nopython=True, nogil=True, cache=False)
+def calc_duty_cycle(on_frames: 'np.ndarray', off_frames: 'np.ndarray') -> float:
+
+    return on_frames.shape[0] / off_frames.shape[0]
+
+def calc_phsw_time(on_frames: 'np.ndarray', exp_time: float) -> float:
+
+    phsw_time_frames = np.max(on_frames) - np.min(on_frames)
+
+    # Time in seconds
+    return phsw_time_frames * exp_time
+
+def extract_phsw_cyc(on_frames: 'np.ndarray') -> list[list]:
+
+    ph_sw_frame_seqs = [
+        list(seq) for seq in consecutive_groups(on_frames)
+    ]
+
+    return ph_sw_frame_seqs
+
+@jit(nopython=True, nogil=True, cache=False, parallel=True)
+def ph_per_phsw_cyc(frame_seqs: list[list], spot: 'np.ndarray') -> float:
+
+    photons_per_cycle = np.zeros((len(frame_seqs), 1), dtype=np.int64)
+
+    for i in prange(len(frame_seqs)):
+
+        seq_indices = frame_seqs[i]
+
+        seq = spot[seq_indices]
+
+        photons_per_cycle[i, 0] = convert_to_photons(np.sum(seq))
+    
+    return np.int64(np.mean(photons_per_cycle))
+
+def calc_num_phsw_cycs(phsw_cyc_frames: list) -> int:
+
+    return len(phsw_cyc_frames)
+
+def total_photons(num_sw_cyc: int, ph_per_phsw_cyc: int) -> int:
+
+    return num_sw_cyc * ph_per_phsw_cyc
 
 def main():
     
     file_name = ''
+    out = 'C:/Users/mxq76232/Downloads/test_p'
+    exposure_time = 0.03
     
     images = load_stack(file_name)
     
     photophysical_params = list()
-
-    spot_params = np.zeros((1, 5), dtype=np.float32)
     
     for i, image in enumerate(images):
         
@@ -170,23 +203,39 @@ def main():
         
         local_maxima = extract_local_maxima(filt_im, threshold)
 
-        frame_phphyiscal_params = list()
-        
+        frame_params = np.zeros((local_maxima.shape[0], 5))
+
         for j, maximum in enumerate(local_maxima):
             
             spot = extract_spot_roi(image, images, maximum)
 
             spot_no_bg = spot - np.min(spot)
             
-            ### Insert code for calculations here ###
-        one_frame_params = np.vstack(frame_phphyiscal_params)
+            # Param order: duty cycle, psw time, num cyc, ph per cyc, tot ph #
 
-        frame_no = np.full(one_frame_params.shape[0], i + 1).reshape(-1, 1)
+            on, off = extract_on_off(spot_no_bg)
 
-        frame_params = np.hstack((frame_no, one_frame_params))
+            phsw_cycles = extract_phsw_cyc(on)
+
+            frame_params[j, 0] = calc_duty_cycle(on, off)
+            frame_params[j, 1] = calc_phsw_time(on, exposure_time)
+            frame_params[j, 2] = calc_num_phsw_cycs(phsw_cycles)
+            frame_params[j, 3] = ph_per_phsw_cyc(phsw_cycles, spot_no_bg)
+            frame_params[j, 4] = total_photons(frame_params[j, 2], frame_params[j, 3])
+
+        frame_no = np.full(frame_params.shape[0], i + 1).reshape(-1, 1)
+
+        frame_params = np.hstack((frame_no, frame_params))
 
         photophysical_params.append(frame_params)
 
         del frame_params
 
-        
+        if i == (images.shape[0] * 2) // 3:
+
+            break
+
+    all_params = np.hstack(photophysical_params)
+    all_params_df = conv_to_df(all_params)
+
+    save_data(all_params_df, out=out)
