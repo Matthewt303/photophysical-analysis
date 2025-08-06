@@ -112,7 +112,7 @@ def extract_spot_roi(image, image_stack, spot_center):
 
     y, x = spot_center[0], spot_center[1]
 
-    edge_coords = get_spot_edges(x, y, width=8)
+    edge_coords = get_spot_edges(x, y, width=6)
 
     if np.any(edge_coords > image.shape[0] - 1) is np.True_:
 
@@ -135,16 +135,16 @@ def extract_on_off(spot: 'np.ndarray') -> tuple['np.ndarray', 'np.ndarray']:
 
     mean_int = np.mean(np.mean(spot, axis=2), axis=1)
 
-    on_frames = np.where(mean_int > (2 * threshold))[0]
+    on_frames = np.where(mean_int > (1.4 * threshold))[0]
 
-    off_frames = np.where(mean_int < (2 * threshold))[0]
+    off_frames = np.where(mean_int < (1.4 * threshold))[0]
 
     return on_frames, off_frames
 
 @jit(nopython=True, nogil=True, cache=False)
 def calc_duty_cycle(on_frames: 'np.ndarray', off_frames: 'np.ndarray') -> float:
 
-    return on_frames.shape[0] / off_frames.shape[0]
+    return (on_frames.shape[0] / off_frames.shape[0])
 
 @jit(nopython=True, nogil=True, cache=False)
 def calc_phsw_time(on_frames: 'np.ndarray', exp_time: float) -> float:
@@ -153,7 +153,7 @@ def calc_phsw_time(on_frames: 'np.ndarray', exp_time: float) -> float:
     phsw_time_frames = (np.max(on_frames) + 1) - (np.min(on_frames) - 1)
 
     # Time in seconds
-    return phsw_time_frames * exp_time
+    return (phsw_time_frames * exp_time)
 
 def extract_phsw_cyc(on_frames: 'np.ndarray') -> list[list]:
 
@@ -209,8 +209,6 @@ def main():
         filt_im = dif_of_gaussians_filt(image)
 
         threshold = rms_calc(filt_im)
-
-        print(threshold)
         
         local_maxima = extract_local_maxima(filt_im, threshold)
 
