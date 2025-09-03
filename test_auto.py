@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tifffile as tiff
 from numba import jit, prange
-from analyse import rms_calc
+from analyse import rms_calc, dif_of_gaussians_filt
 import pandas as pd
 
 def load_stack(file_path: str) -> 'np.memarray':
@@ -46,20 +46,19 @@ def auto_cor(data: 'np.ndarray'):
 def main():
 
     file_name = 'C:/Users/mxq76232/Downloads/test_p/2.tif'
+    file_name_2 = 'C:/Users/mxq76232/Downloads/test_p/3.tif'
 
     stack = load_stack(file_name)
 
-    data = sum_stack(stack)
+    test_stack = dif_of_gaussians_filt(stack)
 
-    print(data[0:15])
+    threshold = rms_calc(test_stack)
 
-    autocor = auto_cor(data)
+    mean_int = np.mean(np.mean(test_stack, axis=2), axis=1)
+    on_frames = np.where(mean_int > (1.5 * threshold))[0]
 
-    print(rms_calc(stack))
-    print(np.mean(stack[29, :, :]))
-
-    plt.plot(autocor)
-    plt.show()
+    print(on_frames)
+    #tiff.imwrite(file_name_2, test_stack)
 
 if __name__ == "__main__":
 

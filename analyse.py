@@ -112,7 +112,7 @@ def extract_spot_roi(image, image_stack, spot_center):
 
     y, x = spot_center[0], spot_center[1]
 
-    edge_coords = get_spot_edges(x, y, width=6)
+    edge_coords = get_spot_edges(x, y, width=10)
 
     if np.any(edge_coords > image.shape[0] - 1) is np.True_:
 
@@ -135,9 +135,9 @@ def extract_on_off(spot: 'np.ndarray') -> tuple['np.ndarray', 'np.ndarray']:
 
     mean_int = np.mean(np.mean(spot, axis=2), axis=1)
 
-    on_frames = np.where(mean_int > (1.4 * threshold))[0]
+    on_frames = np.where(mean_int > (1.5 * threshold))[0]
 
-    off_frames = np.where(mean_int < (1.4 * threshold))[0]
+    off_frames = np.where(mean_int < (1.5 * threshold))[0]
 
     return on_frames, off_frames
 
@@ -186,6 +186,12 @@ def calc_num_phsw_cycs(phsw_cyc_frames: list) -> int:
 def total_photons(num_sw_cyc: int, ph_per_phsw_cyc: int) -> int:
 
     return num_sw_cyc * ph_per_phsw_cyc
+
+def filter_zeros(phsw_data: 'np.ndarray') -> 'np.ndarray':
+
+    filt = phsw_data[(phsw_data[:, 2] > 0)]
+
+    return filt
 
 def main():
 
@@ -249,6 +255,8 @@ def main():
         del frame_params
 
         if i == (images.shape[0] * 2) // 3:
+
+            # Analyse only two-thirds of frames #
 
             break
 
