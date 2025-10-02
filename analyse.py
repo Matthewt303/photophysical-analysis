@@ -102,8 +102,6 @@ def extract_spot_rois(image, image_stack, spot_centers):
             # Probably better to extract spot, calc photophysics then move to next spot #
 
             spots.append(spot)
-            
-            del spot
     
     return spots
 
