@@ -7,6 +7,7 @@ Created on Mon Jul 21 11:33:16 2025
 """
 
 import numpy as np
+import cv2 as cv
 from skimage.filters import difference_of_gaussians
 from skimage.feature import peak_local_max
 from numba import jit, prange
@@ -33,24 +34,26 @@ def rms_calc(data: 'np.ndarray') -> float:
 
     return np.sqrt(np.mean(data.flatten()**2))
 
-def dif_of_gaussians_filt(image: 'np.ndarray') -> 'np.ndarray':
-    
-    im = image.copy()
+def dog_filter(image):
+    less_filt = cv.GaussianBlur(image, (11, 11), 1, borderType=cv.BORDER_REPLICATE)
+    more_filt = cv.GaussianBlur(image, (51, 51), 6, borderType=cv.BORDER_REPLICATE)
 
-    filt_im = difference_of_gaussians(im, 1, 6)
+    filt_im = less_filt - more_filt
 
     return filt_im
 
-def extract_local_maxima(image, threshold):
+def extract_local_maxima(img, threshold, neighborhood=8):
+    dilated = cv.dilate(img, np.ones((neighborhood, neighborhood)))
 
-    coordinates = peak_local_max(
-    image,
-    min_distance=2,          # Minimum number of pixels between peaks
-    threshold_abs=6 * threshold,      # Minimum intensity to be considered a spot
-    num_peaks=np.inf,      # Maximum number of peaks to return
-    )
+    local_max_mask = img == dilated
 
-    return coordinates.astype(np.int32)
+    local_max_mask &= img > threshold
+
+    ys, xs = np.where(local_max_mask)
+    coords = np.array(list(zip(ys, xs))).reshape(-1, 2)
+
+    return coords.astype(np.int32)
+
 
 #@jit(nopython=True, nogil=True, cache=False)
 def get_spot_edges(x: int, y: int, width: int):
@@ -210,11 +213,11 @@ def main():
 
         print('Analysing frame ' + str(i + 1)) 
         
-        filt_im = dif_of_gaussians_filt(image)
+        filt_im = dog_filter(image)
 
         threshold = rms_calc(filt_im)
         
-        local_maxima = extract_local_maxima(filt_im, threshold)
+        local_maxima = extract_local_maxima(filt_im, 6 * threshold)
 
         frame_params = np.zeros((local_maxima.shape[0], 5))
 
