@@ -34,6 +34,25 @@ def rms_calc(data: 'np.ndarray') -> float:
 
     return np.sqrt(np.mean(data.flatten()**2))
 
+def dif_of_gaussians_filt(image: 'np.ndarray') -> 'np.ndarray':
+    
+    im = image.copy()
+
+    filt_im = difference_of_gaussians(im, 1, 6)
+
+    return filt_im
+
+def extract_local_maxima(image, threshold):
+
+    coordinates = peak_local_max(
+    image,
+    min_distance=2,          # Minimum number of pixels between peaks
+    threshold_abs=threshold,      # Minimum intensity to be considered a spot
+    num_peaks=np.inf,      # Maximum number of peaks to return
+    )
+
+    return coordinates.astype(np.int32)
+
 def dog_filter(image):
     less_filt = cv.GaussianBlur(image, (11, 11), 1, borderType=cv.BORDER_REPLICATE)
     more_filt = cv.GaussianBlur(image, (51, 51), 6, borderType=cv.BORDER_REPLICATE)
@@ -42,7 +61,7 @@ def dog_filter(image):
 
     return filt_im
 
-def extract_local_maxima(img, threshold, neighborhood=8):
+def extract_local_maxima_cv(img, threshold, neighborhood=8):
     dilated = cv.dilate(img, np.ones((neighborhood, neighborhood)))
 
     local_max_mask = img == dilated
@@ -113,7 +132,7 @@ def extract_spot_roi(image, image_stack, spot_center):
 
     y, x = spot_center[0], spot_center[1]
 
-    edge_coords = get_spot_edges(x, y, width=10)
+    edge_coords = get_spot_edges(x, y, width=8)
 
     if np.any(edge_coords > image.shape[0] - 1) is np.True_:
 
@@ -198,7 +217,7 @@ def main():
 
     ## Hyperparameters ##
     
-    file_name = 'C:/Users/mxq76232/Downloads/test_p/1.tif'
+    file_name = 'C:/Users/mxq76232/Downloads/test_p/storm_data_example.tif'
     out = 'C:/Users/mxq76232/Downloads/test_p'
     exposure_time = 0.03
     adc = 0.59
@@ -217,7 +236,7 @@ def main():
 
         threshold = rms_calc(filt_im)
         
-        local_maxima = extract_local_maxima(filt_im, 6 * threshold)
+        local_maxima = extract_local_maxima_cv(filt_im, 4 * threshold)
 
         frame_params = np.zeros((local_maxima.shape[0], 5))
 
