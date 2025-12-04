@@ -132,7 +132,7 @@ def extract_spot_roi(image, image_stack, spot_center):
 
     y, x = spot_center[0], spot_center[1]
 
-    edge_coords = get_spot_edges(x, y, width=8)
+    edge_coords = get_spot_edges(x, y, width=7)
 
     if np.any(edge_coords > image.shape[0] - 1) is np.True_:
 
@@ -209,7 +209,7 @@ def total_photons(num_sw_cyc: int, ph_per_phsw_cyc: int) -> int:
 
 def filter_zeros(phsw_data: 'np.ndarray') -> 'np.ndarray':
 
-    filt = phsw_data[(phsw_data[:, 2] > 0)]
+    filt = phsw_data[(phsw_data[:, 1] > 0)]
 
     return filt
 
@@ -217,8 +217,8 @@ def main():
 
     ## Hyperparameters ##
     
-    file_name = 'C:/Users/mxq76232/Downloads/test_p/storm_data_example.tif'
-    out = 'C:/Users/mxq76232/Downloads/test_p'
+    file_name = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/npc_gfp_nt/d1/100.tif'
+    out = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/npc_gfp_nt/d1'
     exposure_time = 0.03
     adc = 0.59
 
@@ -236,7 +236,7 @@ def main():
 
         threshold = rms_calc(filt_im)
         
-        local_maxima = extract_local_maxima_cv(filt_im, 4 * threshold)
+        local_maxima = extract_local_maxima_cv(filt_im, 3 * threshold)
 
         frame_params = np.zeros((local_maxima.shape[0], 5))
 
@@ -281,7 +281,10 @@ def main():
             break
 
     all_params = np.vstack(photophysical_params)
-    all_params_df = conv_to_df(all_params)
+
+    all_params_filt = filter_zeros(all_params)
+
+    all_params_df = conv_to_df(all_params_filt)
 
     save_data(all_params_df, out=out)
 
