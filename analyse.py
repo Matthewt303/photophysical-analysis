@@ -155,9 +155,9 @@ def extract_on_off(spot: 'np.ndarray') -> tuple['np.ndarray', 'np.ndarray']:
 
     mean_int = np.mean(np.mean(spot, axis=2), axis=1)
 
-    on_frames = np.where(mean_int > (1.5 * threshold))[0]
+    on_frames = np.where(mean_int > (3 * threshold))[0]
 
-    off_frames = np.where(mean_int < (1.5 * threshold))[0]
+    off_frames = np.where(mean_int < (3 * threshold))[0]
 
     return on_frames, off_frames
 
@@ -217,8 +217,8 @@ def main():
 
     ## Hyperparameters ##
     
-    file_name = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/npc_gfp_nt/d1/100.tif'
-    out = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/npc_gfp_nt/d1'
+    file_name = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/norm/d3/d3_npc_run3_3apr25.tif'
+    out = 'C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/norm/d3'
     exposure_time = 0.03
     adc = 0.59
 
@@ -236,7 +236,7 @@ def main():
 
         threshold = rms_calc(filt_im)
         
-        local_maxima = extract_local_maxima_cv(filt_im, 3 * threshold)
+        local_maxima = extract_local_maxima_cv(filt_im, 5 * threshold)
 
         frame_params = np.zeros((local_maxima.shape[0], 5))
 
@@ -274,7 +274,7 @@ def main():
 
         del frame_params
 
-        if i == (images.shape[0] * 2) // 3:
+        if i == 9999:
 
             # Analyse only two-thirds of frames #
 
