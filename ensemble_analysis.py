@@ -25,6 +25,12 @@ def load_photophys_data(path: str) -> "np.ndarray":
     all_data = np.array(data).astype(np.float32)
     return all_data[:, 1:].reshape(-1, 5)
 
+def filt_photophys_data(data):
+
+    filt_data = data[(data[:, 2] < 50)]
+
+    return filt_data
+
 def save_all_results(data_A, data_B, data_C,
                      data_A_files, data_B_files, data_C_files,
                      cond_A, cond_B, cond_C, out):
@@ -171,7 +177,6 @@ def main():
     cond_A = "Ntcys"
     cond_B = "Ctcys"
     cond_C = "Control"
-    n_conds = 3
 
     ### START ###
 
@@ -193,13 +198,17 @@ def main():
         ct_data = load_photophys_data(files[1])
         control_data = load_photophys_data(files[2])
 
-        nt_weights[i, 0] = nt_data.shape[0]
-        ct_weights[i, 0] = ct_data.shape[0]
-        control_weights[i, 0] = control_data.shape[0]
+        nt_filt_data = filt_photophys_data(nt_data)
+        ct_filt_data = filt_photophys_data(ct_data)
+        control_filt_data = filt_photophys_data(control_data)
 
-        nt_means[i, :] = np.mean(nt_data, axis=0)
-        ct_means[i, :]  = np.mean(ct_data, axis=0)
-        control_means[i, :] = np.mean(control_data, axis=0)
+        nt_weights[i, 0] = nt_filt_data.shape[0]
+        ct_weights[i, 0] = ct_filt_data.shape[0]
+        control_weights[i, 0] = control_filt_data.shape[0]
+
+        nt_means[i, :] = np.mean(nt_filt_data, axis=0)
+        ct_means[i, :]  = np.mean(ct_filt_data, axis=0)
+        control_means[i, :] = np.mean(control_filt_data, axis=0)
     
     all_data = save_all_results(nt_means, ct_means, control_means,
                                 nt_paths, ct_paths, control_paths,
@@ -228,9 +237,9 @@ def main():
     weighted_sds_ct = np.zeros((1, 5))
     weighted_sds_control = np.zeros((1, 5))
 
-    weighted_sds_nt[0, :] = np.sqrt(np.sum(nt_weighted_sd_num, axis=0) / np.sum(nt_weights))
-    weighted_sds_ct[0, :] = np.sqrt(np.sum(ct_weighted_sd_num, axis=0) / np.sum(ct_weights))
-    weighted_sds_control[0, :] = np.sqrt(np.sum(control_weighted_sd_num, axis=0) / np.sum(control_weights))
+    weighted_sds_nt[0, :] = np.sqrt(np.sum(nt_weighted_sd_num, axis=0) / (np.sum(nt_weights) - 1))
+    weighted_sds_ct[0, :] = np.sqrt(np.sum(ct_weighted_sd_num, axis=0) / (np.sum(ct_weights) - 1))
+    weighted_sds_control[0, :] = np.sqrt(np.sum(control_weighted_sd_num, axis=0) / (np.sum(control_weights) - 1))
 
     save_weighted_stats(weighted_means_nt, weighted_means_ct, weighted_means_control,
                         stat="sds", out=out_folder)
@@ -242,10 +251,3 @@ def main():
 if __name__ == "__main__":
 
     main()
-
-
-
-
-
-
-
