@@ -36,8 +36,8 @@ def save_all_results(data_A, data_B, data_C,
                      cond_A, cond_B, cond_C, out):
     
     designate_nt, designate_ct, designate_control = (
-        [cond_A] * len(data_A_files)
-        [cond_B] * len(data_B_files)
+        [cond_A] * len(data_A_files),
+        [cond_B] * len(data_B_files),
         [cond_C] * len(data_C_files)
     )
 
@@ -106,8 +106,21 @@ def plot_all(all_data: "pd.DataFrame", index: int, output_folder: str) -> None:
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
-    y_data = all_data[all_data.columns[index]]
-    y_label = all_data.columns[index]
+    if index == 1:
+        y_data = all_data[all_data.columns[index]] / 0.001
+        y_label = r"Duty cycle $\div$ 1000 (photons)"
+
+    elif index == 4:
+        y_data = all_data[all_data.columns[index]] / 10
+        y_label = "Photons per cycle x 10"
+
+    elif index == 5:
+        y_data = all_data[all_data.columns[index]] / 1000
+        y_label = "Total photons x 1000"
+
+    else:
+        y_data = all_data[all_data.columns[index]]
+        y_label = all_data.columns[index]
 
     graph = sns.stripplot(
         x=all_data.columns[0],
@@ -169,10 +182,10 @@ def main():
 
     ### INITIALIZE ###
 
-    nt_data_folder = ""
-    ct_data_folder = ""
-    control_data_folder = ""
-    out_folder = ""
+    nt_data_folder = "C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/nt"
+    ct_data_folder = "C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/ct"
+    control_data_folder = "C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/control"
+    out_folder = "C:/Users/mxq76232/Documents/PhD/Project_work/nb_mutant_photophys/results"
 
     cond_A = "Ntcys"
     cond_B = "Ctcys"
