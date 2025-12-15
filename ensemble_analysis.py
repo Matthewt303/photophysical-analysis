@@ -108,7 +108,7 @@ def plot_all(all_data: "pd.DataFrame", index: int, output_folder: str) -> None:
 
     if index == 1:
         y_data = all_data[all_data.columns[index]] / 0.001
-        y_label = r"Duty cycle $\div$ 1000 (photons)"
+        y_label = "Duty cycle (ms)"
 
     elif index == 4:
         y_data = all_data[all_data.columns[index]] / 10
@@ -254,7 +254,7 @@ def main():
     weighted_sds_ct[0, :] = np.sqrt(np.sum(ct_weighted_sd_num, axis=0) / (np.sum(ct_weights) - 1))
     weighted_sds_control[0, :] = np.sqrt(np.sum(control_weighted_sd_num, axis=0) / (np.sum(control_weights) - 1))
 
-    save_weighted_stats(weighted_means_nt, weighted_means_ct, weighted_means_control,
+    save_weighted_stats(weighted_sds_nt, weighted_sds_ct, weighted_sds_control,
                         stat="sds", out=out_folder)
     
     for i in range(5):
